@@ -36,6 +36,11 @@ def home():
     return 'Welcome to openEuler upstream cache proxy!'
 
 
+@app.route('/download/')
+def empty_info():
+    return "empty url, please add url to the end!"
+
+
 @app.route('/download/<path:url>')
 def download(url):
     # 检查url
