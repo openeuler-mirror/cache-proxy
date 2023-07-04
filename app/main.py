@@ -39,6 +39,9 @@ def home():
 @app.route('/download/<path:url>')
 def download(url):
     # 检查url
+    if url == "":
+        log.warning("empty url")
+        return "empty url, please add url to the end!"
     if not url.startswith("https://") and not url.startswith("http://"):
         log.warning(f"bad url:{url} try access")
         abort(400, 'Bad download url')
