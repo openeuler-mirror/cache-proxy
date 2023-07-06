@@ -1,13 +1,14 @@
 import sys
 import os
-
+import urllib.request
+sys.path.append(os.path.abspath(os.getcwd()))
 import config
 from flask import Flask, abort
 from app.manager.cache_manager_factory import CacheManagerFactory
 from app.manager.proxy_manager import ProxyManager
 from app.manager.log import log
-
-sys.path.append(os.path.abspath(os.getcwd()))
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 # 检查CACHE_DIR是否存在，如果不存在则创建
 if not os.path.exists(config.CACHE_DIR):
@@ -30,29 +31,51 @@ open_obs = config.OPEN_OBS
 cache_manager = CacheManagerFactory.get_manager(open_obs)
 
 proxy_manager = ProxyManager()
-access = proxy_manager.always_access if proxy_manager.close_or_none() else proxy_manager.rules_filter
+limiter = Limiter(app=app, key_func=get_remote_address)
+
+
+def url_filter(open_rule):
+    def decorator(func):
+        def wrapper(**kwargs):
+            if open_rule:
+                if "url" in kwargs:
+                    url = kwargs.get("url")
+                    try:
+                        response = urllib.request.urlopen(url, timeout=60)
+                    except Exception as e:
+                        log.warning(str(e))
+                        return func(**kwargs)
+                    if response.status == 200:
+                        file_size = response.length
+                        if file_size > 1000000000 and url not in config.URL_WHITE_LIST:
+                            abort(400, "out limit")
+                    return func(**kwargs)
+                log.error("error param, lack of url!")
+            return func(**kwargs)
+        return wrapper
+    return decorator
 
 
 @app.route('/')
+@limiter.limit("50/second")
 def home():
     return 'Welcome to openEuler upstream cache proxy!'
 
 
 @app.route('/download/')
+@limiter.limit("50/second")
 def empty_info():
-    return "empty url, please add url to the end!"
+    return "empty url, please add url to the end"
 
 
 @app.route('/download/<path:url>')
+@limiter.limit("50/second")
+@url_filter(open_rule=config.OPEN_PROXY_RULES)
 def download(url):
     # 检查url
     if not url.startswith("https://") and not url.startswith("http://"):
         log.warning(f"bad url:{url} try access")
         abort(400, 'Bad download url')
-    # 未通过规则，拒绝服务
-    if not access(url):
-        log.warning(f"bad file type: {url} try access")
-        abort(400, 'Prohibited by proxy rule')
     # 查询缓存信息
     if cache_manager.is_in_cache(url):
         return cache_manager.result_in_cache(url)

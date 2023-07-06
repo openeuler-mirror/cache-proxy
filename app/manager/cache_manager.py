@@ -57,6 +57,10 @@ class CacheManager:
         log.info(f"download to local success, url: {url}, filename: {filename}")
         # 下载完成
         lock_set.remove(url_sha256)
+        if "." in filename:
+            suffix = filename.split(".")[-1]
+            if suffix not in config.SUFFIX:
+                raise Exception("This kind of package has no permission: " + filename)
         return file_dir, filepath, url_sha256, filename
 
     def is_in_cache(self, url):
