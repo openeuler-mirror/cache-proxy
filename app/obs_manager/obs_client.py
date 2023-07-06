@@ -1,12 +1,6 @@
 import hashlib
 import os.path
-import shutil
-import urllib.request
-
-import wget
-
 import config
-
 
 from obs import ObsClient
 from app.manager.log import log
@@ -119,14 +113,7 @@ class OBSClient:
 
         return object_key
 
-    def upload_file(self, url):
-        url_sha256 = hashlib.sha256(url.encode("utf-8")).hexdigest()
-        file_dir = os.path.join(config.CACHE_DIR, url_sha256)
-        if os.path.exists(file_dir):
-            raise IOError(f"dir already exits, {file_dir}")
-        os.mkdir(file_dir)
-        filepath = wget.download(url, out=file_dir)
-        filename = os.path.basename(filepath)
+    def upload_file(self, file_dir, filepath, url_sha256, filename):
         object_key = f'{url_sha256}/{filename}'
 
         if os.path.exists(filepath):
@@ -138,13 +125,9 @@ class OBSClient:
                 else:
                     raise Exception(f"upload failed, {object_key}")
         else:
-            raise Exception(f'download failed,{url}')
-
-        if os.path.exists(file_dir):
-            shutil.rmtree(file_dir)
+            raise Exception(f'{filepath} not exist!')
 
         return object_key
-
 
     def get_obs_download_url(self, object_key):
         return f'https://{config.OBS_BUCKET_NAME}.{config.OBS_ENDPOINT}/{object_key}'
@@ -206,7 +189,6 @@ class OBSClient:
         else:
             raise Exception(f"Failed to set {object_key} = PUBLIC_READ")
 
-
     def get_object_metadata(self, object_key):
         try:
             resp = self.client.getObjectMetadata(config.OBS_BUCKET_NAME, object_key)
@@ -229,29 +211,31 @@ class OBSClient:
 
             object_keys = self.get_all_object_key()
             objects = [Object(key=object_key) for object_key in object_keys]
+            small_lists = [objects[i:i+1000] for i in range(0, len(objects), 1000)]
 
-            resp = self.client.deleteObjects(config.OBS_BUCKET_NAME, DeleteObjectsRequest(quiet=False, objects=objects))
+            for objects in small_lists:
+                resp = self.client.deleteObjects(config.OBS_BUCKET_NAME, DeleteObjectsRequest(quiet=False, objects=objects))
 
-            if resp.status < 300:
-                print('requestId:', resp.requestId)
-                if resp.body.deleted:
-                    index = 1
-                    for delete in resp.body.deleted:
-                        print('delete[' + str(index) + ']')
-                        print('key:', delete.key, ',deleteMarker:', delete.deleteMarker, ',deleteMarkerVersionId:',
-                              delete.deleteMarkerVersionId)
-                        print('versionId:', delete.versionId)
-                        index += 1
-                if resp.body.error:
-                    index = 1
-                    for err in resp.body.error:
-                        print('err[' + str(index) + ']')
-                        print('key:', err.key, ',code:', err.code, ',message:', err.message)
-                        print('versionId:', err.versionId)
-                        index += 1
-            else:
-                print('errorCode:', resp.errorCode)
-                print('errorMessage:', resp.errorMessage)
+                if resp.status < 300:
+                    print('requestId:', resp.requestId)
+                    if resp.body.deleted:
+                        index = 1
+                        for delete in resp.body.deleted:
+                            print('delete[' + str(index) + ']')
+                            print('key:', delete.key, ',deleteMarker:', delete.deleteMarker, ',deleteMarkerVersionId:',
+                                  delete.deleteMarkerVersionId)
+                            print('versionId:', delete.versionId)
+                            index += 1
+                    if resp.body.error:
+                        index = 1
+                        for err in resp.body.error:
+                            print('err[' + str(index) + ']')
+                            print('key:', err.key, ',code:', err.code, ',message:', err.message)
+                            print('versionId:', err.versionId)
+                            index += 1
+                else:
+                    print('errorCode:', resp.errorCode)
+                    print('errorMessage:', resp.errorMessage)
         except:
             import traceback
             print(traceback.format_exc())

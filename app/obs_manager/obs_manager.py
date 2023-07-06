@@ -2,10 +2,10 @@ import hashlib
 import os
 import shutil
 import threading
-
 import config
+
 from app.obs_manager.obs_client import obs_client
-from app.manager.cache_manager import CacheManager
+from app.manager.cache_manager import CacheManager, LockException, lock_set
 from app.obs_manager.obs_meta import obs_meta
 from app.manager.log import log
 from flask import redirect
@@ -17,7 +17,7 @@ def get_sha256(url):
 
 class OBSManager(CacheManager):
     def __init__(self):
-        pass
+        super().__init__()
 
     def is_in_cache(self, url):
         url_sha256 = get_sha256(url)
@@ -31,25 +31,29 @@ class OBSManager(CacheManager):
         return redirect(obs_url)
 
     def result_not_in_cache(self, url):
-        log.info(f"{url} not in obs, start uploading file to obs")
-        threading.Thread(target=OBSManager.do_upload, args=(url,)).start()
-        log.info(f"{url} not in obs, redirect official url")
-        return redirect(url)
+        log.info(f"{url} not in obs, start caching")
+        threading.Thread(target=self.start_cache, args=(url, )).start()
+        log.info(f"{url} not in obs, redirect {self.proxy + url}")
+        return redirect(self.proxy + url)
 
-    @staticmethod
-    def do_upload(url):
+    def start_cache(self, url):
         try:
-            object_key = obs_client.upload_file(url)
-            url_sha256 = get_sha256(url)
+            file_dir, filepath, url_sha256, filename = self.download(url)
+            object_key = obs_client.upload_file(file_dir, filepath, url_sha256, filename)
             obs_meta.update(url_sha256, object_key)
-        except IOError as e:
-            log.error(f'{e}')
-        except Exception as e:
-            url_sha256 = get_sha256(url)
-            file_dir = os.path.join(config.CACHE_DIR, url_sha256)
             if os.path.exists(file_dir):
                 shutil.rmtree(file_dir)
-            log.error(f'upload exception, {e}. url, {url}')
+        except LockException as e:
+            log.error(f"{e}")
+        except Exception as e:
+            url_sha256 = get_sha256(url)
+            # 移除正在下载标识
+            lock_set.remove(url_sha256)
+            file_dir = os.path.join(config.CACHE_DIR, url_sha256)
+            # 防止异常未清理
+            if os.path.exists(file_dir):
+                shutil.rmtree(file_dir)
+            log.error(f'start caching exception, {e}. url, {url}')
 
 
 

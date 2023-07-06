@@ -1,11 +1,13 @@
 import sys
 import os
-sys.path.append(os.path.abspath(os.getcwd()))
+
 import config
 from flask import Flask, abort
 from app.manager.cache_manager_factory import CacheManagerFactory
 from app.manager.proxy_manager import ProxyManager
 from app.manager.log import log
+
+sys.path.append(os.path.abspath(os.getcwd()))
 
 # 检查CACHE_DIR是否存在，如果不存在则创建
 if not os.path.exists(config.CACHE_DIR):
