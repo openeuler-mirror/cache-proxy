@@ -4,7 +4,7 @@ import config
 class ProxyManager:
     def __init__(self):
         self.open_proxy_rules = config.OPEN_PROXY_RULES
-        self.proxy_rules = config.SUFFIX_RULES.split() if config.SUFFIX_RULES else []
+        self.proxy_rules = config.SUFFIX
 
     def rules_filter(self, url):
         for rule in self.proxy_rules:
