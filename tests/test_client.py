@@ -63,7 +63,7 @@ def test():
         elapsed_time = end_time - start_time
         if elapsed_time < interval:
             time.sleep(interval - elapsed_time)
-    fail.close()
+    fail_f.close()
 
 
 if __name__ == "__main__":
