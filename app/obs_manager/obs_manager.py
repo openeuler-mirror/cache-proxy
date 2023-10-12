@@ -2,6 +2,7 @@ import hashlib
 import os
 import shutil
 import threading
+from urllib.parse import quote
 import config
 
 from app.obs_manager.obs_client import obs_client
