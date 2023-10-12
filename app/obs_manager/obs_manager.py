@@ -27,6 +27,8 @@ class OBSManager(CacheManager):
         url_sha256 = get_sha256(url)
         object_key = obs_meta.get_object_key(url_sha256)
         obs_url = obs_client.get_obs_download_url(object_key)
+        basename = os.path.basename(obs_url)
+        obs_url = obs_url.replace(basename, quote(basename))
         log.info(f"{url} in obs, redirect obs url")
         return redirect(obs_url)
 
