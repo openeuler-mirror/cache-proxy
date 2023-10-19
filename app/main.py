@@ -39,7 +39,7 @@ def check_url(url):
         response = urllib.request.urlopen(url, timeout=60)
     except Exception as e:
         log.warning(str(e))
-        False
+        return False
     if response.status == 200:
         file_size = response.length
         if not isinstance(file_size, int):
