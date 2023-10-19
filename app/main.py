@@ -34,22 +34,30 @@ proxy_manager = ProxyManager()
 limiter = Limiter(app=app, key_func=get_remote_address)
 
 
+def check_url(url):
+    try:
+        response = urllib.request.urlopen(url, timeout=60)
+    except Exception as e:
+        log.warning(str(e))
+        return False
+    if response.status == 200:
+        file_size = response.length
+        if not isinstance(file_size, int):
+            log.warning("error size type in the request")
+            file_size = 0
+        if file_size > 1000000000 and url not in config.URL_WHITE_LIST:
+            abort(400, "out limit")
+    return True
+
+
 def url_filter(open_rule):
     def decorator(func):
         def wrapper(**kwargs):
-            if open_rule:
-                if "url" in kwargs:
-                    url = kwargs.get("url")
-                    try:
-                        response = urllib.request.urlopen(url, timeout=60)
-                    except Exception as e:
-                        log.warning(str(e))
-                        return func(**kwargs)
-                    if response.status == 200:
-                        file_size = response.length
-                        if file_size > 1000000000 and url not in config.URL_WHITE_LIST:
-                            abort(400, "out limit")
+            if open_rule and "url" in kwargs:
+                url = kwargs.get("url")
+                if not check_url(url):
                     return func(**kwargs)
+            elif not open_rule:
                 log.error("error param, lack of url!")
             return func(**kwargs)
         return wrapper
