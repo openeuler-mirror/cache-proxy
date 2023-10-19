@@ -47,6 +47,9 @@ def url_filter(open_rule):
                         return func(**kwargs)
                     if response.status == 200:
                         file_size = response.length
+                        if not isinstance(file_size, int):
+                            log.warning("error size type in the request")
+                            file_size = 0
                         if file_size > 1000000000 and url not in config.URL_WHITE_LIST:
                             abort(400, "out limit")
                     return func(**kwargs)
