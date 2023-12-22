@@ -61,6 +61,7 @@ class CacheManager:
             suffix = filename.split(".")[-1]
             if suffix not in config.SUFFIX:
                 log.error("This kind of package has no permission: " + filename)
+                return
         return file_dir, filepath, url_sha256, filename
 
     def is_in_cache(self, url):
