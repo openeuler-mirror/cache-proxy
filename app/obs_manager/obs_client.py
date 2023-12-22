@@ -109,7 +109,6 @@ class OBSClient:
             self.set_object_acl(object_key)
         else:
             log.error(f'from {url} upload {object_key} fail, {resp.errorCode} errorMessage:, {resp.errorMessage}')
-            raise Exception("from {url} upload {object_key} fail")
 
         return object_key
 
@@ -123,9 +122,9 @@ class OBSClient:
                     log.info(f"upload successful, {object_key}")
                     self.set_object_acl(object_key)
                 else:
-                    raise Exception(f"upload failed, {object_key}")
+                    log.error(f"upload failed, {object_key}")
         else:
-            raise Exception(f'{filepath} not exist!')
+            log.error(f'{filepath} not exist!')
 
         return object_key
 
@@ -187,7 +186,7 @@ class OBSClient:
         if resp.status < 300:
             log.info(f"setting {object_key} = PUBLIC_READ succeeded")
         else:
-            raise Exception(f"Failed to set {object_key} = PUBLIC_READ")
+            log.error(f"Failed to set {object_key} = PUBLIC_READ")
 
     def get_object_metadata(self, object_key):
         try:
